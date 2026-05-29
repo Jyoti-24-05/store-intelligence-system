@@ -1,0 +1,75 @@
+# ============================================================
+# .gitignore — store-intelligence
+# ============================================================
+
+# --- Dataset / media (NEVER commit CCTV footage or CSVs) ---
+data/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.csv
+
+# --- Databases ---
+*.db
+*.db-shm
+*.db-wal
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.Python
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Test / coverage artefacts ---
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.coveragerc
+
+# --- Type checker ---
+.mypy_cache/
+.ruff_cache/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# --- Docker ---
+*.dockerignore
+
+# --- YOLO model weights (large binary — download at build time) ---
+*.pt
+*.onnx
+
+# --- Pipeline output (JSONL events — not source code) ---
+output/
+pipeline_output/
+
+# --- Node / React ---
+node_modules/
+dashboard/web/dist/
+dashboard/web/.vite/

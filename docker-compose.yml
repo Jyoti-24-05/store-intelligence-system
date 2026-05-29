@@ -1,0 +1,91 @@
+version: "3.9"
+
+# ============================================================
+# Store Intelligence — docker-compose
+#
+# Default start:           docker compose up -d api
+# With pipeline (batch):   docker compose --profile pipeline up
+# With dashboard:          docker compose --profile dashboard up
+# Full stack:              docker compose --profile pipeline --profile dashboard up
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # API service — FastAPI + SQLite (swap DATABASE_URL for Postgres)
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:ro          # dataset files (read-only)
+      - api_db:/app/db               # persistent SQLite volume
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/db/store_intelligence.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s              # give uvicorn + DB init time to finish
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Detection pipeline — YOLOv8 + ByteTrack + Re-ID
+  # Only starts with:  docker compose --profile pipeline up
+  # ----------------------------------------------------------
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    volumes:
+      - ./data:/app/data:ro          # source clips + store_layout.json (read-only)
+      - pipeline_output:/app/output  # emitted JSONL events
+    environment:
+      - API_URL=http://api:8000
+      - CLIPS_DIR=/app/data/clips
+      - STORE_LAYOUT=/app/data/store_layout.json
+      - OUTPUT_DIR=/app/output
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      api:
+        condition: service_healthy   # wait for API to pass healthcheck
+    profiles:
+      - pipeline
+    restart: "no"                    # batch job — run once and exit
+
+  # ----------------------------------------------------------
+  # Terminal dashboard — rich live view polling the API
+  # Only starts with:  docker compose --profile dashboard up
+  # ----------------------------------------------------------
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline   # reuse pipeline image (has rich + httpx)
+    command: ["python", "dashboard/terminal_dashboard.py"]
+    environment:
+      - API_URL=http://api:8000
+      - STORE_ID=${STORE_ID:-STORE_BLR_002}
+      - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-5}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      api:
+        condition: service_healthy
+    profiles:
+      - dashboard
+    restart: unless-stopped
+
+# ----------------------------------------------------------
+# Named volumes (survive container restarts)
+# ----------------------------------------------------------
+volumes:
+  api_db:
+    driver: local
+  pipeline_output:
+    driver: local

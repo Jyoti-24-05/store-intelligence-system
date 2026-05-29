@@ -1,0 +1,41 @@
+# ============================================================
+# Dockerfile.pipeline — Detection pipeline + terminal dashboard
+# Base: python:3.11-slim + OpenCV system deps + YOLO weights
+# ============================================================
+FROM python:3.11-slim
+
+# --- System deps for OpenCV + FFmpeg ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# --- Install Python dependencies ---
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# --- Pre-download YOLOv8m weights at build time ---
+# Avoids cold-start delay on first inference in production
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8m.pt')" \
+    && echo "YOLOv8m weights cached"
+
+# --- Copy pipeline + shared models ---
+COPY pipeline/ ./pipeline/
+COPY app/models.py ./app/models.py
+COPY app/__init__.py ./app/__init__.py
+COPY dashboard/ ./dashboard/
+
+# --- Runtime env ---
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Output dir for JSONL events
+RUN mkdir -p /app/output
+
+CMD ["bash", "pipeline/run.sh", "/app/data/clips", "/app/data/store_layout.json"]
