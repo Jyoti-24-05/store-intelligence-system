@@ -11,10 +11,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# --- Install Python dependencies (cached layer) ---
-COPY requirements.txt .
-# Exclude heavy CV packages not needed by the API image
-# (torch, torchvision, ultralytics, opencv are pipeline-only)
+# --- Copy dependency files first (better layer caching) ---
+COPY requirements.txt requirements-dev.txt ./
+
+# --- Install all dependencies including test deps ---
 RUN pip install --no-cache-dir \
     fastapi==0.111.0 \
     uvicorn[standard]==0.29.0 \
@@ -31,11 +31,18 @@ RUN pip install --no-cache-dir \
     python-dotenv==1.0.1 \
     click==8.1.7 \
     rich==13.7.1 \
-    shapely==2.0.4
+    shapely==2.0.4 \
+    # --- test deps ---
+    pytest==8.2.0 \
+    pytest-asyncio==0.23.7 \
+    pytest-cov==5.0.0 \
+    factory-boy==3.3.0 \
+    Faker==25.0.0
 
 # --- Copy application source ---
 COPY app/ ./app/
-COPY dashboard/terminal_dashboard.py ./dashboard/
+COPY dashboard/ ./dashboard/
+COPY tests/ ./tests/
 
 # --- Runtime env ---
 ENV PYTHONPATH=/app
