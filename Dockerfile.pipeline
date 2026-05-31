@@ -22,8 +22,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # --- Pre-download YOLOv8m weights at build time ---
 # Avoids cold-start delay on first inference in production
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8m.pt')" \
-    && echo "YOLOv8m weights cached"
 
 # --- Copy pipeline + shared models ---
 COPY pipeline/ ./pipeline/

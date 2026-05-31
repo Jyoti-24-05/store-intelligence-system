@@ -43,7 +43,7 @@ services:
       context: .
       dockerfile: Dockerfile.pipeline
     volumes:
-      - ./data:/app/data:ro          # source clips + store_layout.json (read-only)
+      - ./data:/app/data       # source clips + store_layout.json (read-only)
       - pipeline_output:/app/output  # emitted JSONL events
     environment:
       - API_URL=http://api:8000
