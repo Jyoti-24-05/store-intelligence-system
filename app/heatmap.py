@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 
 from app.database import Event as EventRow, get_db
 from app.models import StoreHeatmap, ZoneHeatmapEntry
+from app.time_range import store_metrics_window
 
 router = APIRouter(tags=["heatmap"])
 

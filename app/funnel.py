@@ -39,21 +39,6 @@ async def get_funnel(store_id: str) -> StoreFunnel:
         stage_entry: int = entry_result.scalar() or 0
         entry_sessions_subq = entry_sessions_q.subquery()
 
-        # ── Stage 2: sessions with at least one ZONE_ENTER today and an ENTRY session ─
-        zone_sessions_q = (
-            select(func.distinct(EventRow.visitor_id))
-            .where(
-                EventRow.store_id   == store_id,
-                EventRow.event_type == "ZONE_ENTER",
-                EventRow.is_staff   == False,
-                EventRow.timestamp  >= range_start,
-                EventRow.timestamp  <= range_end,
-                EventRow.visitor_id.in_(entry_sessions_subq),
-            )
-        )
-        zone_result = await db.execute(
-            select(func.count()).select_from(zone_sessions_q.subquery())
-        )
         stage_zone: int = zone_result.scalar() or 0
 
         # ── Stage 3: sessions with at least one BILLING_QUEUE_JOIN today and an ENTRY session ─
