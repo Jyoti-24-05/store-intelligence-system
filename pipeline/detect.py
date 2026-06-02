@@ -128,7 +128,9 @@ def detect_clip(
             cy = ((y1 + y2) / 2) / h
 
             zone_id  = zone_mapper.get_zone(cx, cy)
-            is_staff = staff_clf.classify(frame, box, cx, cy, zone_id)
+            is_staff, staff_definitive = staff_clf.classify_detailed(
+                frame, box, cx, cy, zone_id
+            )
 
             tracker.update(
                 track_id  = track_id,
@@ -137,6 +139,7 @@ def detect_clip(
                 box       = box,
                 conf      = conf,
                 is_staff  = is_staff,
+                staff_definitive=staff_definitive,
                 zone_id   = zone_id,
                 frame_time= frame_time,
                 emitter   = emitter,

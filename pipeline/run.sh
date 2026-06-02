@@ -28,17 +28,17 @@ log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 # ── Step 0: Preprocess POS CSV ────────────────────────────────────────────────
 log "Preprocessing POS transactions..."
 python pipeline/preprocess_pos.py \
-    --input  data/Brigade_Bangalore_10_April_26.csv \
+    --input  "data/Brigade_Bangalore_10_April_26 (1)bc6219c.csv" \
     --output data/pos_transactions.csv
 log "POS preprocessing done."
 
 # ── Camera filename → ID map ──────────────────────────────────────────────────
 declare -A CAM_MAP=(
-    ["CAM1"]="CAM_1" ["cam1"]="CAM_1"
-    ["CAM2"]="CAM_2" ["cam2"]="CAM_2"
-    ["CAM3"]="CAM_3" ["cam3"]="CAM_3"
-    ["CAM4"]="CAM_4" ["cam4"]="CAM_4"
-    ["CAM5"]="CAM_5" ["cam5"]="CAM_5"
+    ["CAM 1"]="CAM_1" ["cam1"]="CAM_1"
+    ["CAM 2"]="CAM_2" ["cam2"]="CAM_2"
+    ["CAM 3"]="CAM_3" ["cam3"]="CAM_3"
+    ["CAM 4"]="CAM_4" ["cam4"]="CAM_4"
+    ["CAM 5"]="CAM_5" ["cam5"]="CAM_5"
 )
 
 # ── Process each clip ─────────────────────────────────────────────────────────

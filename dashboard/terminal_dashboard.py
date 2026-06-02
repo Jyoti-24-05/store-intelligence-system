@@ -8,7 +8,7 @@ Usage
 Environment variables
 ---------------------
     API_URL                  default: http://localhost:8000
-    STORE_ID                 default: STORE_BLR_002
+    STORE_ID                 default: ST1008
     POLL_INTERVAL_SECONDS    default: 5
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ from rich.text import Text
 from rich import box
 
 API_URL             = os.getenv("API_URL",             "http://localhost:8000")
-STORE_ID            = os.getenv("STORE_ID",            "STORE_BLR_002")
+STORE_ID            = os.getenv("STORE_ID",            "ST1008")
 POLL_INTERVAL       = int(os.getenv("POLL_INTERVAL_SECONDS", "5"))
 
 console = Console()

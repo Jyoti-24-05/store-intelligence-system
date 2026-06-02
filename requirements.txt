@@ -13,12 +13,13 @@ aiosqlite==0.20.0          # SQLite async driver (swap to asyncpg for Postgres)
 alembic==1.13.1
 
 # --------------- Computer Vision pipeline ---------------
-ultralytics==8.2.18         # YOLOv8 + ByteTrack built-in
+ultralytics==8.3.0         # YOLOv8 + ByteTrack built-in
 opencv-python-headless==4.9.0.80
 numpy==1.26.4
+lapx>=0.5.2
 Pillow==10.3.0
-torch>=2.2.0                # CPU-safe; GPU auto-detected
-torchvision>=0.17.0
+torch==2.5.1                # CPU-safe; GPU auto-detected
+torchvision==0.20.1
 # torchreid: install via git if PyPI release lags
 # pip install git+https://github.com/KaiyangZhou/deep-person-reid.git
 shapely==2.0.4              # Point-in-polygon for zone mapping
@@ -36,3 +37,4 @@ httpx==0.27.0               # Async HTTP client (also used in tests)
 python-dotenv==1.0.1
 click==8.1.7                # CLI entry point for pipeline/run.sh
 rich==13.7.1                # Terminal dashboard
+

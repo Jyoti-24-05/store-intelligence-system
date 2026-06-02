@@ -44,6 +44,7 @@ services:
       dockerfile: Dockerfile.pipeline
     volumes:
       - ./data:/app/data       # source clips + store_layout.json (read-only)
+      - ./pipeline:/app/pipeline:ro   # live code (rebuild image only when deps change)
       - pipeline_output:/app/output  # emitted JSONL events
     environment:
       - API_URL=http://api:8000
@@ -70,7 +71,7 @@ services:
     command: ["python", "dashboard/terminal_dashboard.py"]
     environment:
       - API_URL=http://api:8000
-      - STORE_ID=${STORE_ID:-STORE_BLR_002}
+      - STORE_ID=${STORE_ID:-ST1008}
       - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-5}
       - PYTHONUNBUFFERED=1
     depends_on:

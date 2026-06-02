@@ -4,13 +4,13 @@ pipeline/preprocess_pos.py
 Transforms raw Brigade_Bangalore retail CSV (101 rows, 39 cols, multi-SKU)
 into the spec-compliant pos_transactions.csv (24 rows, one per order).
 
-Input:  data/Brigade_Bangalore_10_April_26.csv
+Input:  data/Brigade_Bangalore_10_April_26 (1)bc6219c.csv
 Output: data/pos_transactions.csv        (for pos_correlator)
         data/pos_transactions_enriched.csv (for internal analytics)
 
 Run:
     python pipeline/preprocess_pos.py
-    python pipeline/preprocess_pos.py --input data/x.csv --output data/pos_transactions.csv
+    python pipeline/preprocess_pos.py --input "data/Brigade_Bangalore_10_April_26 (1)bc6219c.csv" --output data/pos_transactions.csv
 """
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def preprocess_pos(input_path: str, output_path: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input",  default="data/Brigade_Bangalore_10_April_26.csv")
+    parser.add_argument("--input",  default="data/Brigade_Bangalore_10_April_26 (1)bc6219c.csv")
     parser.add_argument("--output", default="data/pos_transactions.csv")
     args = parser.parse_args()
     preprocess_pos(args.input, args.output)

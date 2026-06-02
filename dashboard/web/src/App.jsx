@@ -5,7 +5,7 @@ import Heatmap      from "./components/Heatmap";
 import AnomalyFeed  from "./components/AnomalyFeed";
 
 const API_URL  = import.meta.env.VITE_API_URL  || "http://localhost:8000";
-const STORE_ID = import.meta.env.VITE_STORE_ID || "STORE_BLR_002";
+const STORE_ID = import.meta.env.VITE_STORE_ID || "ST1008";
 
 export default function App() {
   const [metrics,   setMetrics]   = useState(null);
@@ -75,19 +75,18 @@ export default function App() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16,
                     marginBottom: 24 }}>
         <MetricsCard label="Unique Visitors"  value={metrics?.unique_visitors ?? "—"}
-                     icon="👥" color="#818cf8" />
+                     color="#818cf8" />
         <MetricsCard label="Conversion Rate"
                      value={metrics ? `${(metrics.conversion_rate * 100).toFixed(1)}%` : "—"}
-                     icon="💳" color="#34d399" />
-        <MetricsCard label="Queue Depth"      value={metrics?.current_queue_depth ?? "—"}
-                     icon="🧾"
+                     color="#34d399" />
+        <MetricsCard label="Queue Depth"      value={metrics?.current_queue_depth ?? "—"}                     
                      color={!metrics ? "#94a3b8"
                            : metrics.current_queue_depth < 3  ? "#22c55e"
                            : metrics.current_queue_depth <= 6 ? "#f59e0b"
                            :                                    "#ef4444"} />
         <MetricsCard label="Abandonment Rate"
                      value={metrics ? `${(metrics.abandonment_rate * 100).toFixed(1)}%` : "—"}
-                     icon="🚶" color="#f87171" />
+                     color="#f87171" />
       </div>
 
       {/* Funnel + Heatmap row */}
