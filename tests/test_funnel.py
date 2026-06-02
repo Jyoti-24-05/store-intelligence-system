@@ -72,6 +72,46 @@ async def test_funnel_full_progression(client):
     assert stages["purchase"]["count"]      == 3
 
 
+async def test_funnel_stages_are_scoped_to_entry_sessions(client):
+    """Only visitors with an ENTRY session should count in downstream stages."""
+    from app.database import get_db, POSTransaction
+
+    events = [
+        make_event("ENTRY", visitor_id="VIS_enter"),
+        make_zone_event("SKINCARE", visitor_id="VIS_enter"),
+        make_billing_event("VIS_enter", queue_depth=1),
+        make_zone_event("SKINCARE", visitor_id="VIS_zone_only"),
+        make_billing_event("VIS_zone_only", queue_depth=2),
+    ]
+    await client.post("/events/ingest", json={"events": events})
+
+    async with get_db() as db:
+        db.add(POSTransaction(
+            transaction_id="TXN_enter",
+            store_id=STORE_ID,
+            timestamp=datetime.now(timezone.utc),
+            basket_value_inr=100.0,
+            matched_visitor_id="VIS_enter",
+        ))
+        db.add(POSTransaction(
+            transaction_id="TXN_zone_only",
+            store_id=STORE_ID,
+            timestamp=datetime.now(timezone.utc),
+            basket_value_inr=80.0,
+            matched_visitor_id="VIS_zone_only",
+        ))
+        await db.commit()
+
+    resp = await client.get(f"/stores/{STORE_ID}/funnel")
+    assert resp.status_code == 200
+    stages = {s["stage"]: s for s in resp.json()["stages"]}
+
+    assert stages["entry"]["count"]         == 1
+    assert stages["zone_visit"]["count"]    == 1
+    assert stages["billing_queue"]["count"] == 1
+    assert stages["purchase"]["count"]      == 1
+
+
 # ── 3. Drop-off percentage accuracy ──────────────────────────────────────────
 
 async def test_funnel_dropoff_accuracy(client):

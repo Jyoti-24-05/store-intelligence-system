@@ -5,28 +5,22 @@ has no traffic — never 500 or null fields.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select
 
-from app.database import Event as EventRow, POSTransaction, VisitorSession, get_db
+from app.database import Event as EventRow, POSTransaction, get_db
 from app.models import StoreMetrics, ZoneDwellMetric
+from app.time_range import store_metrics_window
 
 router = APIRouter(tags=["metrics"])
 
 
-def _today_range() -> tuple[datetime, datetime]:
-    now = datetime.now(timezone.utc)
-    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    return start, now
-
-
 @router.get("/stores/{store_id}/metrics", response_model=StoreMetrics)
 async def get_metrics(store_id: str) -> StoreMetrics:
-    today_start, now = _today_range()
-
     async with get_db() as db:
+        range_start, range_end = await store_metrics_window(db, store_id)
 
         # ── unique_visitors (ENTRY events, non-staff, today) ──────────────
         uv_result = await db.execute(
@@ -35,8 +29,8 @@ async def get_metrics(store_id: str) -> StoreMetrics:
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "ENTRY",
                 EventRow.is_staff   == False,
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
             )
         )
         unique_visitors: int = uv_result.scalar() or 0
@@ -48,8 +42,8 @@ async def get_metrics(store_id: str) -> StoreMetrics:
             .where(
                 POSTransaction.store_id           == store_id,
                 POSTransaction.matched_visitor_id != None,
-                POSTransaction.timestamp          >= today_start,
-                POSTransaction.timestamp          <= now,
+                POSTransaction.timestamp          >= range_start,
+                POSTransaction.timestamp          <= range_end,
             )
         )
         converted_count: int = conv_result.scalar() or 0
@@ -66,8 +60,8 @@ async def get_metrics(store_id: str) -> StoreMetrics:
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "ZONE_DWELL",
                 EventRow.zone_id    != None,
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
             )
             .group_by(EventRow.zone_id)
         )
@@ -99,8 +93,8 @@ async def get_metrics(store_id: str) -> StoreMetrics:
             .where(
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "BILLING_QUEUE_JOIN",
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
             )
         )
         abandon_result = await db.execute(
@@ -108,8 +102,8 @@ async def get_metrics(store_id: str) -> StoreMetrics:
             .where(
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "BILLING_QUEUE_ABANDON",
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
             )
         )
         total_joins:   int = join_result.scalar() or 0
@@ -118,7 +112,7 @@ async def get_metrics(store_id: str) -> StoreMetrics:
 
     return StoreMetrics(
         store_id            = store_id,
-        as_of               = now,
+        as_of               = range_end,
         unique_visitors     = unique_visitors,
         conversion_rate     = round(conversion_rate, 4),
         avg_dwell_per_zone  = avg_dwell_per_zone,

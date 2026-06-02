@@ -8,25 +8,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
-from sqlalchemy import func, select, distinct
+from sqlalchemy import func, select
 
-from app.database import Event as EventRow, POSTransaction, VisitorSession, get_db
+from app.database import Event as EventRow, POSTransaction, get_db
 from app.models import StoreFunnel, FunnelStage
+from app.time_range import store_metrics_window
 
 router = APIRouter(tags=["funnel"])
 
 
-def _today_start() -> datetime:
-    now = datetime.now(timezone.utc)
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-
 @router.get("/stores/{store_id}/funnel", response_model=StoreFunnel)
 async def get_funnel(store_id: str) -> StoreFunnel:
-    now         = datetime.now(timezone.utc)
-    today_start = _today_start()
-
     async with get_db() as db:
+        range_start, range_end = await store_metrics_window(db, store_id)
 
         # ── Stage 1: sessions with at least one ENTRY today ───────────────
         entry_sessions_q = (
@@ -35,24 +29,26 @@ async def get_funnel(store_id: str) -> StoreFunnel:
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "ENTRY",
                 EventRow.is_staff   == False,
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
             )
         )
         entry_result = await db.execute(
             select(func.count()).select_from(entry_sessions_q.subquery())
         )
         stage_entry: int = entry_result.scalar() or 0
+        entry_sessions_subq = entry_sessions_q.subquery()
 
-        # ── Stage 2: sessions with at least one ZONE_ENTER today ──────────
+        # ── Stage 2: sessions with at least one ZONE_ENTER today and an ENTRY session ─
         zone_sessions_q = (
             select(func.distinct(EventRow.visitor_id))
             .where(
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "ZONE_ENTER",
                 EventRow.is_staff   == False,
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
+                EventRow.visitor_id.in_(entry_sessions_subq),
             )
         )
         zone_result = await db.execute(
@@ -60,15 +56,16 @@ async def get_funnel(store_id: str) -> StoreFunnel:
         )
         stage_zone: int = zone_result.scalar() or 0
 
-        # ── Stage 3: sessions with at least one BILLING_QUEUE_JOIN today ──
+        # ── Stage 3: sessions with at least one BILLING_QUEUE_JOIN today and an ENTRY session ─
         billing_sessions_q = (
             select(func.distinct(EventRow.visitor_id))
             .where(
                 EventRow.store_id   == store_id,
                 EventRow.event_type == "BILLING_QUEUE_JOIN",
                 EventRow.is_staff   == False,
-                EventRow.timestamp  >= today_start,
-                EventRow.timestamp  <= now,
+                EventRow.timestamp  >= range_start,
+                EventRow.timestamp  <= range_end,
+                EventRow.visitor_id.in_(entry_sessions_subq),
             )
         )
         billing_result = await db.execute(
@@ -76,14 +73,15 @@ async def get_funnel(store_id: str) -> StoreFunnel:
         )
         stage_billing: int = billing_result.scalar() or 0
 
-        # ── Stage 4: sessions with a correlated POS transaction today ─────
+        # ── Stage 4: sessions with a correlated POS transaction today and an ENTRY session ─
         purchase_result = await db.execute(
             select(func.count(func.distinct(POSTransaction.matched_visitor_id)))
             .where(
                 POSTransaction.store_id           == store_id,
                 POSTransaction.matched_visitor_id != None,
-                POSTransaction.timestamp          >= today_start,
-                POSTransaction.timestamp          <= now,
+                POSTransaction.matched_visitor_id.in_(entry_sessions_subq),
+                POSTransaction.timestamp          >= range_start,
+                POSTransaction.timestamp          <= range_end,
             )
         )
         stage_purchase: int = purchase_result.scalar() or 0
@@ -107,7 +105,7 @@ async def get_funnel(store_id: str) -> StoreFunnel:
 
     return StoreFunnel(
         store_id      = store_id,
-        as_of         = now,
+        as_of         = range_end,
         stages        = stages,
         session_count = stage_entry,   # unique sessions = unique ENTRY visitors
     )

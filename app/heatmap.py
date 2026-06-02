@@ -20,18 +20,44 @@ from app.models import StoreHeatmap, ZoneHeatmapEntry
 router = APIRouter(tags=["heatmap"])
 
 # Path to store_layout.json — overridable via env var
-STORE_LAYOUT_PATH = os.getenv("STORE_LAYOUT", "/app/data/store_layout.json")
+DEFAULT_LAYOUT_PATH = Path(__file__).resolve().parents[1] / "data" / "store_layout.json"
+STORE_LAYOUT_PATH = os.getenv("STORE_LAYOUT", str(DEFAULT_LAYOUT_PATH))
+
+
+def _parse_zone_ids(raw_zones) -> list[str]:
+    if raw_zones is None:
+        return []
+    if isinstance(raw_zones, dict):
+        return [zone_id for zone_id, value in raw_zones.items() if isinstance(zone_id, str)]
+    if isinstance(raw_zones, list):
+        ids = []
+        for zone in raw_zones:
+            if isinstance(zone, dict):
+                ids.append(zone.get("zone_id") or zone.get("id") or next(iter(zone.keys()), None))
+            elif isinstance(zone, str):
+                ids.append(zone)
+        return [zone_id for zone_id in ids if zone_id]
+    return []
 
 
 def _load_zone_ids() -> list[str]:
     """Return zone IDs from store_layout.json, empty list if file missing."""
     try:
         layout_path = Path(STORE_LAYOUT_PATH)
-        if layout_path.exists():
-            data = json.loads(layout_path.read_text())
-            # Support both {"zones": [...]} and flat list formats
-            zones = data.get("zones", data) if isinstance(data, dict) else data
-            return [z.get("zone_id") or z.get("id") or z for z in zones]
+        if not layout_path.exists():
+            return []
+        data = json.loads(layout_path.read_text())
+        if isinstance(data, dict):
+            if "zones" in data:
+                return _parse_zone_ids(data["zones"])
+            if "cameras" in data:
+                zone_ids: list[str] = []
+                for camera in data["cameras"].values():
+                    if isinstance(camera, dict):
+                        zone_ids += _parse_zone_ids(camera.get("zones"))
+                return zone_ids
+            return _parse_zone_ids(data)
+        return _parse_zone_ids(data)
     except Exception:
         pass
     return []
@@ -39,13 +65,13 @@ def _load_zone_ids() -> list[str]:
 
 @router.get("/stores/{store_id}/heatmap", response_model=StoreHeatmap)
 async def get_heatmap(store_id: str) -> StoreHeatmap:
-    now            = datetime.now(timezone.utc)
-    window_start   = now - timedelta(hours=24)
-    layout_zones   = _load_zone_ids()
+    layout_zones = _load_zone_ids()
 
     async with get_db() as db:
+        # ── Use event-anchored window, not wall-clock ─────────────────────
+        window_start, now = await store_metrics_window(db, store_id)
 
-        # ── Zone visit counts + dwell sums for last 24h ───────────────────
+        # ── Zone visit counts + dwell sums ────────────────────────────────
         zone_result = await db.execute(
             select(
                 EventRow.zone_id,
@@ -85,9 +111,9 @@ async def get_heatmap(store_id: str) -> StoreHeatmap:
 
     zones = []
     for zone_id in all_zone_ids:
-        data         = db_zones.get(zone_id, {"visit_count": 0, "avg_dwell_ms": 0.0})
-        visit_count  = data["visit_count"]
-        norm_score   = round((visit_count / max_visits) * 100, 2) if max_visits > 0 else 0.0
+        data        = db_zones.get(zone_id, {"visit_count": 0, "avg_dwell_ms": 0.0})
+        visit_count = data["visit_count"]
+        norm_score  = round((visit_count / max_visits) * 100, 2) if max_visits > 0 else 0.0
         zones.append(ZoneHeatmapEntry(
             zone_id          = zone_id,
             normalised_score = norm_score,
@@ -95,7 +121,6 @@ async def get_heatmap(store_id: str) -> StoreHeatmap:
             visit_count      = visit_count,
         ))
 
-    # Sort by score descending for readability
     zones.sort(key=lambda z: z.normalised_score, reverse=True)
 
     return StoreHeatmap(
