@@ -20,12 +20,17 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data:ro          # dataset files (read-only)
-      - api_db:/app/db               # persistent SQLite volume
+      - ./data:/app/data:ro
+      - ./data/store1_layout.json:/app/data/store1_layout.json:ro    # ST1008
+      - ./data/store2_layout.json:/app/data/store2_layout.json:ro   # ST1076
+      - api_db:/app/db         # persistent SQLite volume
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////app/db/store_intelligence.db
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - PYTHONUNBUFFERED=1
+      - STORE_LAYOUT_ST1008=/app/data/store1_layout.json
+      - STORE_LAYOUT_ST1076=/app/data/store2_layout.json
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -49,7 +54,8 @@ services:
     environment:
       - API_URL=http://api:8000
       - CLIPS_DIR=/app/data/clips
-      - STORE_LAYOUT=/app/data/store_layout.json
+      - STORE_LAYOUT_ST1008=/app/data/store1_layout.json
+      - STORE_LAYOUT_ST1076=/app/data/store2_layout.json
       - OUTPUT_DIR=/app/output
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - PYTHONUNBUFFERED=1

@@ -1,32 +1,44 @@
 const STAGE_COLORS = {
   entry:         "#818cf8",
-  zone_visit:    "#34d399",
-  billing_queue: "#f59e0b",
-  purchase:      "#22c55e",
+  zone_visit:    "#2dd4bf",
+  billing_queue: "#fb923c",
+  purchase:      "#4ade80",
 };
+
+const card  = { background: "#1e1e2e", borderRadius: 12, padding: "20px 24px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.4)" };
+const title = { margin: 0, fontSize: 15, fontWeight: 600, color: "#e2e8f0" };
 
 export default function FunnelChart({ funnel }) {
   if (!funnel) return (
     <div style={card}>
-      <h3 style={title}>Conversion Funnel</h3>
-      <p style={{ color: "#64748b", textAlign: "center", marginTop: 40 }}>Loading…</p>
+      <h3 style={title}>Conversion funnel</h3>
+      <p style={{ color: "#475569", textAlign: "center", marginTop: 40 }}>Loading…</p>
     </div>
   );
 
-  const max = funnel.stages[0]?.count || 1;
+  const max = funnel.stages?.[0]?.count || 1;
+
   return (
     <div style={card}>
-      <h3 style={title}>Conversion Funnel</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-        {funnel.stages.map((s) => {
-          const pct  = max > 0 ? (s.count / max) * 100 : 0;
-          const col  = STAGE_COLORS[s.stage] || "#94a3b8";
-          const label = s.stage.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase());
+      <div style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "baseline", marginBottom: 16 }}>
+        <h3 style={title}>Conversion funnel</h3>
+        <span style={{ fontSize: 12, color: "#475569" }}>
+          {funnel.session_count} sessions
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {funnel.stages?.map((s) => {
+          const pct = max > 0 ? (s.count / max) * 100 : 0;
+          const col = STAGE_COLORS[s.stage] || "#94a3b8";
+          const lbl = s.stage.replace(/_/g, " ")
+                             .replace(/\b\w/g, c => c.toUpperCase());
           return (
             <div key={s.stage}>
               <div style={{ display: "flex", justifyContent: "space-between",
                             fontSize: 13, marginBottom: 4 }}>
-                <span style={{ color: "#cbd5e1" }}>{label}</span>
+                <span style={{ color: "#cbd5e1" }}>{lbl}</span>
                 <span style={{ color: col, fontWeight: 600 }}>
                   {s.count}
                   {s.stage !== "entry" && s.drop_off_pct > 0 &&
@@ -37,8 +49,10 @@ export default function FunnelChart({ funnel }) {
                 </span>
               </div>
               <div style={{ height: 10, borderRadius: 5, background: "#2d2d3d" }}>
-                <div style={{ width: `${pct}%`, height: "100%", borderRadius: 5,
-                              background: col, transition: "width 0.6s ease" }} />
+                <div style={{
+                  width: `${pct}%`, height: "100%", borderRadius: 5,
+                  background: col, transition: "width 0.6s ease",
+                }} />
               </div>
             </div>
           );
@@ -50,7 +64,3 @@ export default function FunnelChart({ funnel }) {
     </div>
   );
 }
-
-const card  = { background: "#1e1e2e", borderRadius: 12, padding: "20px 24px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.4)" };
-const title = { margin: 0, fontSize: 15, fontWeight: 600, color: "#e2e8f0" };

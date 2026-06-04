@@ -69,7 +69,16 @@ async def ingest_events(payload: IngestRequest, request: Request) -> IngestRespo
 
 
 def _to_row(event: StoreEvent) -> EventRow:
+    """Map a StoreEvent Pydantic model to an Event ORM row.
+
+    All ST1076 enrichment fields are Optional — they will be None for
+    ST1008 events and the column will store NULL.
+    """
+    m  = event.metadata          # shorthand
+    qt = m.queue_timing          # None for non-billing / ST1008 events
+
     return EventRow(
+        # ── Core ────────────────────────────────────────────────────────────
         event_id    = str(event.event_id),
         store_id    = event.store_id,
         camera_id   = event.camera_id,
@@ -80,8 +89,37 @@ def _to_row(event: StoreEvent) -> EventRow:
         dwell_ms    = event.dwell_ms,
         is_staff    = event.is_staff,
         confidence  = event.confidence,
-        queue_depth = event.metadata.queue_depth,
-        sku_zone    = event.metadata.sku_zone,
-        session_seq = event.metadata.session_seq,
+
+        # ── EventMetadata core ───────────────────────────────────────────────
+        queue_depth = m.queue_depth,
+        sku_zone    = m.sku_zone,
+        session_seq = m.session_seq,
+
+        # ── ST1076: visitor demographics ─────────────────────────────────────
+        gender_pred    = m.gender_pred,
+        age_pred       = m.age_pred,
+        age_bucket     = m.age_bucket,
+        is_face_hidden = m.is_face_hidden,
+
+        # ── ST1076: group entry ───────────────────────────────────────────────
+        group_id       = m.group_id,
+        group_size     = m.group_size,
+
+        # ── ST1076: zone enrichment ───────────────────────────────────────────
+        zone_name       = m.zone_name,
+        zone_type       = m.zone_type,
+        is_revenue_zone = m.is_revenue_zone,
+        zone_hotspot_x  = m.zone_hotspot_x,
+        zone_hotspot_y  = m.zone_hotspot_y,
+
+        # ── ST1076: queue timing (None for non-billing / ST1008 events) ───────
+        queue_join_ts          = qt.queue_join_ts          if qt else None,
+        queue_served_ts        = qt.queue_served_ts        if qt else None,
+        queue_exit_ts          = qt.queue_exit_ts          if qt else None,
+        wait_seconds           = qt.wait_seconds           if qt else None,
+        queue_position_at_join = qt.queue_position_at_join if qt else None,
+        queue_abandoned        = qt.abandoned              if qt else None,
+
+        # ── Audit / replay ────────────────────────────────────────────────────
         raw_json    = orjson.dumps(event.model_dump(mode="json")).decode(),
     )

@@ -12,10 +12,12 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
+from app import breakdown
 
-from app.database import init_db, check_db
+from app.database import init_db, check_db, migrate_db
 
 # ── structlog configuration ───────────────────────────────────────────────────
 structlog.configure(
@@ -37,6 +39,7 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await migrate_db()          # ← must be BEFORE yield, not after
     from app.pos_correlator import load_pos_csv
     loaded = await load_pos_csv()
     if loaded:
@@ -51,6 +54,22 @@ app = FastAPI(
     version="1.0.0",
     description="Real-time retail analytics from CCTV — Purplle challenge",
     lifespan=lifespan,
+)
+
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Must be registered before any other middleware or routers so that preflight
+# OPTIONS requests are handled before the logging middleware runs.
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",   # React dev server (default CRA / Vite port)
+        "http://127.0.0.1:3000",   # same, numeric form
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -133,6 +152,6 @@ app.include_router(funnel_router)
 app.include_router(heatmap_router)
 app.include_router(anomalies_router)
 app.include_router(health_detail_router)
-
+app.include_router(breakdown.router)
 from app.sse import router as sse_router
 app.include_router(sse_router)

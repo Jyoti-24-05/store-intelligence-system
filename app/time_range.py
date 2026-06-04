@@ -1,16 +1,22 @@
-# time_range.py — replace your current implementation with this
+"""app/time_range.py — time window helper for all store metric queries.
 
+Uses the LATEST event timestamp for the store as the anchor date, not
+server-local "today". This is critical for replaying historical CCTV clips
+(e.g. footage from April 10) — without this fix every metric query returns
+zero because "today" (June) has no events.
+"""
 from __future__ import annotations
-from datetime import datetime, timezone, timedelta
+
+from datetime import datetime, timezone
 from sqlalchemy import select, func
 from app.database import Event as EventRow
 
 
 async def store_metrics_window(db, store_id: str):
-    """
-    Returns (range_start, range_end) based on the LATEST event date for the store.
-    Falls back to today if no events exist.
-    This prevents empty results when replaying historical/test data.
+    """Return (range_start, range_end) spanning the calendar day of the
+    store's most recent event.
+
+    Falls back to today UTC when no events exist yet (fresh DB).
     """
     result = await db.execute(
         select(func.max(EventRow.timestamp))
@@ -19,12 +25,10 @@ async def store_metrics_window(db, store_id: str):
     latest: datetime | None = result.scalar()
 
     if latest is None:
-        # No data at all — use today
         now = datetime.now(timezone.utc)
     else:
         now = latest.replace(tzinfo=timezone.utc) if latest.tzinfo is None else latest
 
-    # Window = entire calendar day of the latest event
     range_start = now.replace(hour=0,  minute=0,  second=0,  microsecond=0)
     range_end   = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
