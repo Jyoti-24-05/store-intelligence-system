@@ -1,6 +1,8 @@
+<div align= "center">
 # Store Intelligence System
 
 Real-time retail analytics from raw CCTV footage. A computer vision pipeline detects visitors, tracks movement across store zones, classifies staff vs customers, and exposes a live REST API with metrics, funnel analysis, heatmaps, and anomaly detection — across multiple stores from a single deployment.
+</div>
 
 ---
 
