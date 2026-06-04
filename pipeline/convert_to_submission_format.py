@@ -167,8 +167,8 @@ def convert_file(input_path: str, output_path: str) -> tuple[int, int]:
     converted = 0
     skipped   = 0
 
-    with open(input_path)  as fin, \
-         open(output_path, "w") as fout:
+    with open(input_path, encoding="utf-16") as fin, \
+     open(output_path, "w", encoding="utf-8") as fout:
 
         for line_num, line in enumerate(fin, 1):
             line = line.strip()
